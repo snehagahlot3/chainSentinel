@@ -1,0 +1,178 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  password      String
+  name          String
+  role          Role           @default(DISTRIBUTOR)
+  organization  Organization?
+  products     Product[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+enum Role {
+  ADMIN
+  DISTRIBUTOR
+  SUPPLIER
+}
+
+model Organization {
+  id            String          @id @default(cuid())
+  name          String
+  type          OrganizationType
+  userId        String          @unique
+  user          User            @relation(fields: [userId], references: [id])
+  integrations  Integration[]
+  inventories   Inventory[]
+  products      Product[]
+  alerts        Alert[]
+  autoOrderRules AutoOrderRule[]
+  orders        Order[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+enum OrganizationType {
+  DISTRIBUTOR
+  SUPPLIER
+}
+
+model Integration {
+  id            String          @id @default(cuid())
+  organization  Organization    @relation(fields: [organizationId], references: [id])
+  organizationId String
+  name          String
+  endpointUrl   String
+  eventTypes    String         // JSON array stored as string
+  isActive      Boolean         @default(true)
+  secretKey     String
+  webhookEvents WebhookEvent[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+model WebhookEvent {
+  id            String          @id @default(cuid())
+  integration   Integration     @relation(fields: [integrationId], references: [id])
+  integrationId String
+  eventType     String
+  payload       Json
+  status        EventStatus     @default(PENDING)
+  deliveredAt   DateTime?
+  retryCount    Int             @default(0)
+  createdAt     DateTime        @default(now())
+}
+
+enum EventStatus {
+  PENDING
+  DELIVERED
+  FAILED
+}
+
+model Product {
+  id            String          @id @default(cuid())
+  organization  Organization    @relation(fields: [organizationId], references: [id])
+  organizationId String
+  name          String
+  sku           String
+  description   String?
+  price         Float
+  supplier      User?           @relation(fields: [supplierId], references: [id])
+  supplierId    String?
+  inventories   Inventory[]
+  alerts        Alert[]
+  autoOrderRules AutoOrderRule[]
+  orderItems    OrderItem[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+model Inventory {
+  id            String          @id @default(cuid())
+  organization  Organization    @relation(fields: [organizationId], references: [id])
+  organizationId String
+  product        Product         @relation(fields: [productId], references: [id])
+  productId      String
+  quantity       Int             @default(0)
+  minThreshold   Int             @default(10)
+  autoOrderThreshold Int         @default(5)
+  lastSyncedAt   DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@unique([organizationId, productId])
+}
+
+model Alert {
+  id            String          @id @default(cuid())
+  organization  Organization    @relation(fields: [organizationId], references: [id])
+  organizationId String
+  type          AlertType
+  message       String
+  product        Product?        @relation(fields: [productId], references: [id])
+  productId      String?
+  isRead         Boolean         @default(false)
+  createdAt     DateTime        @default(now())
+}
+
+enum AlertType {
+  LOW_STOCK
+  AUTO_ORDER_TRIGGERED
+  WEBHOOK_FAILED
+  ORDER_RECEIVED
+}
+
+model AutoOrderRule {
+  id                String          @id @default(cuid())
+  organization      Organization    @relation(fields: [organizationId], references: [id])
+  organizationId    String
+  product           Product         @relation(fields: [productId], references: [id])
+  productId         String
+  thresholdQuantity Int
+  quantityToOrder   Int
+  supplierId        String
+  isActive          Boolean         @default(true)
+  lastTriggeredAt   DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+model Order {
+  id            String          @id @default(cuid())
+  organization  Organization    @relation(fields: [organizationId], references: [id])
+  organizationId String
+  orderNumber   String          @unique
+  status        OrderStatus     @default(PENDING)
+  totalAmount   Float
+  supplierId    String?
+  items         OrderItem[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+model OrderItem {
+  id            String          @id @default(cuid())
+  order         Order           @relation(fields: [orderId], references: [id])
+  orderId       String
+  product       Product         @relation(fields: [productId], references: [id])
+  productId     String
+  quantity      Int
+  price         Float
+}
