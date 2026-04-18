@@ -7,6 +7,114 @@ datasource db {
   url      = "file:./dev.db"
 }
 
+model ApiKey {
+  id            String   @id @default(cuid())
+  organization  Organization @relation(fields: [organizationId], references: [id])
+  organizationId String
+  name          String
+  key           String   @unique
+  permissions   String   @default("[]")  // JSON array
+  isActive      Boolean  @default(true)
+  lastUsedAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model AutomationRule {
+  id            String   @id @default(cuid())
+  organization  Organization @relation(fields: [organizationId], references: [id])
+  organizationId String
+  name          String
+  description   String?
+  triggerType   TriggerType
+  triggerConfig Json     // JSON config for trigger conditions
+  isActive      Boolean  @default(true)
+  priority      Int      @default(0)
+  tasks         AutomationTask[]
+  executions    RuleExecution[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+enum TriggerType {
+  INVENTORY_BELOW_THRESHOLD
+  INVENTORY_ZERO
+  INVENTORY_RESTOCK
+  SALE_COMPLETED
+  LARGE_ORDER
+  MANUAL
+}
+
+model AutomationTask {
+  id            String   @id @default(cuid())
+  automationRule AutomationRule @relation(fields: [ruleId], references: [id])
+  ruleId        String
+  taskType      TaskType
+  taskConfig    Json     // JSON config for task (email, api_call, etc.)
+  order         Int      @default(0)
+  isActive      Boolean  @default(true)
+  executions    TaskExecution[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+enum TaskType {
+  EMAIL
+  API_CALL
+  WEBHOOK
+  CREATE_ORDER
+  SMS
+}
+
+model RuleExecution {
+  id            String   @id @default(cuid())
+  automationRule AutomationRule @relation(fields: [ruleId], references: [id])
+  ruleId        String
+  triggerData   Json     // What triggered the rule
+  status        ExecutionStatus @default(PENDING)
+  errorMessage  String?
+  startedAt     DateTime @default(now())
+  completedAt   DateTime?
+  taskExecutions TaskExecution[]
+}
+
+enum ExecutionStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model TaskExecution {
+  id              String   @id @default(cuid())
+  automationTask  AutomationTask @relation(fields: [taskId], references: [id])
+  taskId          String
+  ruleExecution   RuleExecution @relation(fields: [executionId], references: [id])
+  executionId     String
+  status          ExecutionStatus @default(PENDING)
+  result          String?   // Response from external system
+  errorMessage    String?
+  retryCount      Int      @default(0)
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+}
+
+model Sale {
+  id              String   @id @default(cuid())
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  organizationId  String
+  productSku      String
+  product         Product? @relation(fields: [productId], references: [id])
+  productId       String?
+  quantity        Int
+  customerEmail   String?
+  orderId         String?
+  amount          Float?
+  metadata        String?  // JSON string
+  source          String   @default("api")  // 'api', 'webhook', 'manual'
+  createdAt       DateTime @default(now())
+}
+
 model User {
   id            String         @id @default(cuid())
   email         String         @unique
@@ -14,7 +122,8 @@ model User {
   name          String
   role          Role           @default(DISTRIBUTOR)
   organization  Organization?
-  products     Product[]
+  products      Product[]      @relation("UserProducts")
+  supplierProducts Product[]    @relation("SupplierProducts")
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 }
@@ -37,6 +146,9 @@ model Organization {
   alerts        Alert[]
   autoOrderRules AutoOrderRule[]
   orders        Order[]
+  apiKeys       ApiKey[]
+  automationRules AutomationRule[]
+  sales         Sale[]
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 }
@@ -86,12 +198,15 @@ model Product {
   sku           String
   description   String?
   price         Float
-  supplier      User?           @relation(fields: [supplierId], references: [id])
+  supplier      User?           @relation("SupplierProducts", fields: [supplierId], references: [id])
   supplierId    String?
+  user          User?           @relation("UserProducts", fields: [userId], references: [id])
+  userId        String?
   inventories   Inventory[]
   alerts        Alert[]
   autoOrderRules AutoOrderRule[]
   orderItems    OrderItem[]
+  sales         Sale[]
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 }
