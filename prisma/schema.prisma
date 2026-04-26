@@ -149,6 +149,8 @@ model Organization {
   apiKeys       ApiKey[]
   automationRules AutomationRule[]
   sales         Sale[]
+  predictions   Prediction[]
+  salesAnalytics SalesAnalytics[]
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 }
@@ -207,6 +209,8 @@ model Product {
   autoOrderRules AutoOrderRule[]
   orderItems    OrderItem[]
   sales         Sale[]
+  predictions   Prediction[]
+  salesAnalytics SalesAnalytics[]
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 }
@@ -290,4 +294,44 @@ model OrderItem {
   productId     String
   quantity      Int
   price         Float
+}
+
+model Prediction {
+  id                  String       @id @default(cuid())
+  organization        Organization  @relation(fields: [organizationId], references: [id])
+  organizationId     String
+  product            Product       @relation(fields: [productId], references: [id])
+  productId         String
+  predictedDepletion DateTime?
+  riskLevel         RiskLevel
+  confidence        Float
+  recommendedOrderQty Int?
+  daysRemaining   Int?
+  modelVersion   String      @default("1.0")
+  createdAt     DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([organizationId, productId])
+}
+
+enum RiskLevel {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+model SalesAnalytics {
+  id              String       @id @default(cuid())
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  organizationId String
+  product         Product      @relation(fields: [productId], references: [id])
+  productId      String
+  periodDays     Int
+  unitsSold     Int
+  avgDailySales Float
+  trend        Float
+  createdAt    DateTime    @default(now())
+
+  @@unique([organizationId, productId, periodDays])
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
 import { executeAutomationEngine } from '@/lib/automation'
+import { generateAndSavePredictions } from '@/lib/ml/service'
 
 export const dynamic = 'force-dynamic'
 
@@ -152,6 +153,10 @@ export async function POST(request: NextRequest) {
       saleId: sale.id,
       metadata: { customerEmail, orderId, amount },
     })
+
+    generateAndSavePredictions(organizationId).catch((err) =>
+      console.error('AI prediction update failed:', err)
+    )
 
     return NextResponse.json({
       success: true,
