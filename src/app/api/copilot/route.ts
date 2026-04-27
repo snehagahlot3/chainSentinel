@@ -145,7 +145,7 @@ Important rules:
 
 Respond naturally to the user's question.`
 
-    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY.startsWith('AIzaSy')) {
+    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'your_api_key_here') {
       return NextResponse.json({ 
         response: "AI is not configured yet. Please add your Gemini API key in the .env file:\n\nGEMINI_API_KEY=your_api_key_here",
         type: 'text'
