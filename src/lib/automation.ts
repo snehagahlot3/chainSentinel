@@ -121,6 +121,15 @@ async function executeTask(task: any, executionId: string, context: TriggerConte
       case 'SMS':
         result = await executeSmsTask(config, context)
         break
+      case 'TRANSFER_STOCK':
+        result = await executeTransferStockTask(config, context)
+        break
+      case 'ESCALATE_SUPPLIER':
+        result = await executeEscalateSupplierTask(config, context)
+        break
+      case 'CHECK_NEARBY_STOCK':
+        result = await executeCheckNearbyStockTask(config, context)
+        break
       default:
         throw new Error(`Unknown task type: ${task.taskType}`)
     }
@@ -294,4 +303,221 @@ function interpolateObject(obj: any, context: TriggerContext): any {
 
 function getNestedValue(obj: any, path: string): any {
   return path.split('.').reduce((acc, part) => acc && acc[part], obj)
+}
+
+async function executeTransferStockTask(config: Record<string, any>, context: TriggerContext): Promise<string> {
+  const { maxDistance } = config
+  const productSku = context.productSku
+  const locationId = context.metadata?.locationId
+  
+  if (!locationId) {
+    throw new Error('Location ID required for transfer stock task')
+  }
+
+  const targetLocation = await prisma.location.findUnique({ where: { id: locationId } })
+
+  if (!targetLocation) {
+    throw new Error('Target location not found')
+  }
+
+  const targetInventory = await prisma.inventory.findFirst({
+    where: { locationId, product: { sku: productSku } }
+  })
+
+  if (!targetInventory || targetInventory.quantity > (context.quantity || 0)) {
+    return 'No transfer needed - stock is available'
+  }
+
+  const sourceLocations = await prisma.location.findMany({
+    where: {
+      organizationId: context.organizationId,
+      id: { not: locationId },
+      isActive: true,
+      latitude: { not: null },
+      longitude: { not: null }
+    },
+    include: {
+      inventories: {
+        where: { product: { sku: productSku }, quantity: { gt: 0 } }
+      }
+    }
+  })
+
+  let bestLocation: any = null
+  let minDistance = maxDistance || 100
+
+  if (targetLocation.latitude && targetLocation.longitude) {
+    for (const loc of sourceLocations) {
+      if (loc.latitude && loc.longitude) {
+        const dist = calculateDistance(
+          targetLocation.latitude,
+          targetLocation.longitude,
+          loc.latitude,
+          loc.longitude
+        )
+        if (dist < minDistance && loc.inventories[0]?.quantity > 0) {
+          minDistance = dist
+          bestLocation = loc
+        }
+      }
+    }
+  }
+
+  if (bestLocation) {
+    const transfer = await prisma.locationTransfer.create({
+      data: {
+        organizationId: context.organizationId,
+        fromLocationId: bestLocation.id,
+        toLocationId: locationId,
+        productId: context.metadata?.productId,
+        quantity: context.metadata?.reorderQuantity || 10,
+        status: 'PENDING'
+      }
+    })
+
+    await prisma.alert.create({
+      data: {
+        organizationId: context.organizationId,
+        type: 'LOW_STOCK_TRANSFER',
+        message: `Stock transfer initiated from ${bestLocation.name} to fulfill order`,
+        locationId,
+        metadata: JSON.stringify({ transferId: transfer.id })
+      }
+    })
+
+    return JSON.stringify({ transfer, sourceLocation: bestLocation })
+  }
+
+  return 'No nearby location with available stock'
+}
+
+async function executeCheckNearbyStockTask(config: Record<string, any>, context: TriggerContext): Promise<string> {
+  const productSku = context.productSku
+  const locationId = context.metadata?.locationId
+  const radiusMiles = config.radiusMiles || 50
+
+  if (!locationId) {
+    return 'Location ID required'
+  }
+
+  const targetLocation = await prisma.location.findUnique({ where: { id: locationId } })
+
+  if (!targetLocation?.latitude || !targetLocation?.longitude) {
+    return 'Target location coordinates not available'
+  }
+
+  const nearbyLocations = await prisma.location.findMany({
+    where: {
+      organizationId: context.organizationId,
+      id: { not: locationId },
+      isActive: true,
+      latitude: { not: null },
+      longitude: { not: null }
+    },
+    include: {
+      inventories: {
+        where: { product: { sku: productSku } }
+      }
+    }
+  })
+
+  const locationsWithStock = nearbyLocations
+    .filter(loc => {
+      if (!loc.latitude || !loc.longitude) return false
+      const dist = calculateDistance(
+        targetLocation.latitude!,
+        targetLocation.longitude!,
+        loc.latitude,
+        loc.longitude
+      )
+      return dist <= radiusMiles && loc.inventories[0]?.quantity > 0
+    })
+    .map(loc => ({
+      id: loc.id,
+      name: loc.name,
+      distance: calculateDistance(
+        targetLocation.latitude!,
+        targetLocation.longitude!,
+        loc.latitude!,
+        loc.longitude!
+      ),
+      quantity: loc.inventories[0]?.quantity || 0
+    }))
+    .sort((a, b) => a.distance - b.distance)
+
+  return JSON.stringify(locationsWithStock)
+}
+
+async function executeEscalateSupplierTask(config: Record<string, any>, context: TriggerContext): Promise<string> {
+  const { supplierId, unresponsiveDays, escalationEmail, escalationWebhook } = config
+  const daysThreshold = unresponsiveDays || 7
+
+  if (!supplierId) {
+    throw new Error('Supplier ID required for escalate task')
+  }
+
+  const recentOrders = await prisma.supplierOrder.findMany({
+    where: {
+      supplierId,
+      requestedAt: { gte: new Date(Date.now() - daysThreshold * 24 * 60 * 60 * 1000) }
+    },
+    orderBy: { requestedAt: 'desc' }
+  })
+
+  const lastOrder = recentOrders[0]
+  const noResponse = !lastOrder?.confirmedAt && (
+    Date.now() - new Date(lastOrder?.requestedAt).getTime() > daysThreshold * 24 * 60 * 60 * 1000
+  )
+
+  if (noResponse) {
+    const supplier = await prisma.supplier.findUnique({ where: { id: supplierId } })
+
+    if (supplier?.contactEmail && escalationEmail) {
+      await sendEmail({
+        to: supplier.contactEmail,
+        subject: `URGENT: Order ${lastOrder?.orderNumber} - No Response`,
+        html: `<p>Order ${lastOrder?.orderNumber} has not been confirmed for ${daysThreshold}+ days. Please respond or confirm fulfillment status.</p>`
+      })
+    }
+
+    if (escalationWebhook) {
+      await fetch(escalationWebhook, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          supplierId,
+          supplierName: supplier?.name,
+          orderNumber: lastOrder?.orderNumber,
+          daysPending: daysThreshold,
+          severity: 'critical'
+        })
+      })
+    }
+
+    await prisma.alert.create({
+      data: {
+        organizationId: context.organizationId,
+        type: 'SUPPLIER_UNRESPONSIVE',
+        message: `Supplier ${supplier?.name} has not responded to order ${lastOrder?.orderNumber} for ${daysThreshold}+ days`,
+        supplierId,
+        severity: 'CRITICAL',
+        metadata: JSON.stringify({ orderId: lastOrder?.id, daysPending: daysThreshold })
+      }
+    })
+
+    return `Escalation sent for supplier ${supplier?.name}`
+  }
+
+  return 'Supplier is responsive'
+}
+
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 3959
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLon = (lon2 - lon1) * Math.PI / 180
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) ** 2
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c
 }

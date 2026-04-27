@@ -1,30 +1,38 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { TrendingUp, TrendingDown, Clock, Package, AlertTriangle, CheckCircle, Star, ChevronDown } from 'lucide-react'
-import { Card, PageHeader, Badge } from '@/app/components/ui'
+import { Button, Card, CardContent, CardHeader, Badge } from '@/app/components/ui'
 
 interface Supplier {
   id: string
   name: string
-  email: string
-  productCount: number
-  totalStock: number
-  lowStockProducts: number
-  avgDeliveryDays: number | null
-  onTimeRate: number
-  avgPrice: number
-  totalOrders: number
-  deliveredOrders: number
-  score: number
-  grade: string
+  contactName?: string
+  contactEmail?: string
+  contactPhone?: string
+  apiEndpoint?: string
+  leadTimeDays: number
+  minimumOrderValue: number
+  paymentTerms?: string
+  notes?: string
+  isActive: boolean
+  _count?: { orders: number }
 }
 
 export default function SuppliersPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
-  const [summary, setSummary] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null)
+  const [showForm, setShowForm] = useState(false)
+  const [formData, setFormData] = useState({
+    name: '',
+    contactName: '',
+    contactEmail: '',
+    contactPhone: '',
+    apiEndpoint: '',
+    leadTimeDays: '7',
+    minimumOrderValue: '0',
+    paymentTerms: '',
+    notes: ''
+  })
 
   useEffect(() => {
     fetchSuppliers()
@@ -32,182 +40,200 @@ export default function SuppliersPage() {
 
   const fetchSuppliers = async () => {
     try {
-      const res = await fetch('/api/suppliers?orgId=demo-org')
+      const res = await fetch('/api/suppliers?organizationId=demo-org')
       const data = await res.json()
-      setSuppliers(data.suppliers || [])
-      setSummary(data.summary)
+      setSuppliers(data)
     } catch (error) {
-      console.error('Failed to fetch suppliers:', error)
+      console.error('Error fetching suppliers:', error)
     } finally {
       setLoading(false)
     }
   }
 
-  const getGradeColor = (grade: string) => {
-    if (grade.startsWith('A')) return 'text-green-600 bg-green-100'
-    if (grade === 'B') return 'text-blue-600 bg-blue-100'
-    if (grade === 'C') return 'text-yellow-600 bg-yellow-100'
-    return 'text-red-600 bg-red-100'
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const res = await fetch('/api/suppliers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          organizationId: 'demo-org',
+          ...formData,
+          leadTimeDays: parseInt(formData.leadTimeDays),
+          minimumOrderValue: parseFloat(formData.minimumOrderValue)
+        })
+      })
+      if (res.ok) {
+        setShowForm(false)
+        setFormData({ name: '', contactName: '', contactEmail: '', contactPhone: '', apiEndpoint: '', leadTimeDays: '7', minimumOrderValue: '0', paymentTerms: '', notes: '' })
+        fetchSuppliers()
+      }
+    } catch (error) {
+      console.error('Error creating supplier:', error)
+    }
   }
 
-  const getScoreColor = (score: number) => {
-    if (score >= 90) return 'text-green-600'
-    if (score >= 80) return 'text-blue-600'
-    if (score >= 70) return 'text-yellow-600'
-    if (score >= 60) return 'text-orange-600'
-    return 'text-red-600'
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this supplier?')) return
+    try {
+      await fetch(`/api/suppliers/${id}`, { method: 'DELETE' })
+      fetchSuppliers()
+    } catch (error) {
+      console.error('Error deleting supplier:', error)
+    }
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-      </div>
-    )
+    return <div className="p-8 text-center">Loading...</div>
   }
 
   return (
-    <div>
-      <PageHeader 
-        title="Supplier Scorecard" 
-        subtitle="Track and evaluate supplier performance"
-      />
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-500">Total Suppliers</p>
-              <p className="text-2xl font-bold text-slate-900">{summary?.total || 0}</p>
-            </div>
-            <Package className="w-8 h-8 text-primary-100" />
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-500">Average Score</p>
-              <p className="text-2xl font-bold text-slate-900">{summary?.averageScore || 0}</p>
-            </div>
-            <Star className="w-8 h-8 text-yellow-100" />
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-500">Top Performer</p>
-              <p className="text-lg font-bold text-slate-900 truncate">{summary?.topPerformer || 'N/A'}</p>
-            </div>
-            <CheckCircle className="w-8 h-8 text-green-100" />
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-500">At Risk</p>
-              <p className="text-2xl font-bold text-red-600">{summary?.atRisk || 0}</p>
-            </div>
-            <AlertTriangle className="w-8 h-8 text-red-100" />
-          </div>
-        </Card>
+    <div className="container mx-auto py-8">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Suppliers</h1>
+        <Button onClick={() => setShowForm(!showForm)}>
+          {showForm ? 'Cancel' : 'Add Supplier'}
+        </Button>
       </div>
 
-      {suppliers.length === 0 ? (
-        <Card className="p-12 text-center">
-          <Package className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-slate-900">No Suppliers Yet</h3>
-          <p className="text-slate-500 mt-2">Assign suppliers to products to see their performance metrics here.</p>
-        </Card>
-      ) : (
-        <Card className="overflow-hidden">
-          <div className="p-4 bg-slate-50 border-b border-slate-200">
-            <h3 className="font-semibold text-slate-900">Supplier Rankings</h3>
-          </div>
-          <div className="divide-y divide-slate-100">
-            {suppliers.map((supplier, index) => (
-              <div 
-                key={supplier.id}
-                className={`p-4 hover:bg-slate-50 cursor-pointer transition-colors ${selectedSupplier?.id === supplier.id ? 'bg-primary-50' : ''}`}
-                onClick={() => setSelectedSupplier(selectedSupplier?.id === supplier.id ? null : supplier)}
-              >
-                <div className="flex items-center gap-4">
-                  <div className="flex-shrink-0">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${getGradeColor(supplier.grade)}`}>
-                      {supplier.grade}
-                    </div>
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-semibold text-slate-900 truncate">{supplier.name}</h4>
-                      {index === 0 && (
-                        <Badge variant="success" className="text-xs">Top</Badge>
-                      )}
-                    </div>
-                    <p className="text-sm text-slate-500">{supplier.email}</p>
-                  </div>
-
-                  <div className="flex items-center gap-8 text-sm">
-                    <div className="text-center">
-                      <p className={`font-bold text-xl ${getScoreColor(supplier.score)}`}>{supplier.score}</p>
-                      <p className="text-slate-500 text-xs">Score</p>
-                    </div>
-
-                    <div className="text-center">
-                      <p className="font-semibold text-slate-900">{supplier.onTimeRate}%</p>
-                      <p className="text-slate-500 text-xs">On-Time</p>
-                    </div>
-
-                    <div className="text-center">
-                      <p className="font-semibold text-slate-900">
-                        {supplier.avgDeliveryDays !== null ? `${supplier.avgDeliveryDays}d` : 'N/A'}
-                      </p>
-                      <p className="text-slate-500 text-xs">Avg Delivery</p>
-                    </div>
-
-                    <div className="text-center">
-                      <p className="font-semibold text-slate-900">{supplier.productCount}</p>
-                      <p className="text-slate-500 text-xs">Products</p>
-                    </div>
-
-                    <div className="text-center">
-                      <p className="font-semibold text-slate-900">{supplier.totalOrders}</p>
-                      <p className="text-slate-500 text-xs">Orders</p>
-                    </div>
-
-                    <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${selectedSupplier?.id === supplier.id ? 'rotate-180' : ''}`} />
-                  </div>
+      {showForm && (
+        <Card className="mb-6">
+          <CardHeader>
+            <h2 className="text-lg font-semibold">New Supplier</h2>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Name *</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border rounded-lg"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    required
+                  />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Contact Name</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border rounded-lg"
+                    value={formData.contactName}
+                    onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Contact Email</label>
+                  <input
+                    type="email"
+                    className="w-full px-3 py-2 border rounded-lg"
+                    value={formData.contactEmail}
+                    onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Contact Phone</label>
+                  <input
+                    type="tel"
+                    className="w-full px-3 py-2 border rounded-lg"
+                    value={formData.contactPhone}
+                    onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium mb-1">API Endpoint</label>
+                  <input
+                    type="url"
+                    className="w-full px-3 py-2 border rounded-lg"
+                    value={formData.apiEndpoint}
+                    onChange={(e) => setFormData({ ...formData, apiEndpoint: e.target.value })}
+                    placeholder="https://api.supplier.com/orders"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Lead Time (days)</label>
+                  <input
+                    type="number"
+                    className="w-full px-3 py-2 border rounded-lg"
+                    value={formData.leadTimeDays}
+                    onChange={(e) => setFormData({ ...formData, leadTimeDays: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Minimum Order Value ($)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="w-full px-3 py-2 border rounded-lg"
+                    value={formData.minimumOrderValue}
+                    onChange={(e) => setFormData({ ...formData, minimumOrderValue: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Payment Terms</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border rounded-lg"
+                    value={formData.paymentTerms}
+                    onChange={(e) => setFormData({ ...formData, paymentTerms: e.target.value })}
+                    placeholder="Net 30"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium mb-1">Notes</label>
+                  <textarea
+                    className="w-full px-3 py-2 border rounded-lg"
+                    rows={3}
+                    value={formData.notes}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  />
+                </div>
+              </div>
+              <Button type="submit">Create Supplier</Button>
+            </form>
+          </CardContent>
+        </Card>
+      )}
 
-                {selectedSupplier?.id === supplier.id && (
-                  <div className="mt-4 pt-4 border-t border-slate-200 grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="bg-white p-3 rounded-lg border border-slate-200">
-                      <p className="text-xs text-slate-500 mb-1">Total Stock Units</p>
-                      <p className="font-semibold text-slate-900">{supplier.totalStock.toLocaleString()}</p>
-                    </div>
-                    <div className="bg-white p-3 rounded-lg border border-slate-200">
-                      <p className="text-xs text-slate-500 mb-1">Low Stock Products</p>
-                      <p className={`font-semibold ${supplier.lowStockProducts > 0 ? 'text-yellow-600' : 'text-slate-900'}`}>
-                        {supplier.lowStockProducts} items
-                      </p>
-                    </div>
-                    <div className="bg-white p-3 rounded-lg border border-slate-200">
-                      <p className="text-xs text-slate-500 mb-1">Average Price</p>
-                      <p className="font-semibold text-slate-900">${supplier.avgPrice.toFixed(2)}</p>
-                    </div>
-                    <div className="bg-white p-3 rounded-lg border border-slate-200">
-                      <p className="text-xs text-slate-500 mb-1">Delivered Orders</p>
-                      <p className="font-semibold text-slate-900">{supplier.deliveredOrders} of {supplier.totalOrders}</p>
-                    </div>
-                  </div>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {suppliers.map((supplier) => (
+          <Card key={supplier.id}>
+            <CardHeader className="pb-2">
+              <div className="flex justify-between items-start">
+                <h3 className="text-lg font-semibold">{supplier.name}</h3>
+                <Badge variant={supplier.isActive ? 'success' : 'default'}>
+                  {supplier.isActive ? 'Active' : 'Inactive'}
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-sm space-y-2">
+                {supplier.contactName && <p><span className="font-medium">Contact:</span> {supplier.contactName}</p>}
+                {supplier.contactEmail && <p><span className="font-medium">Email:</span> {supplier.contactEmail}</p>}
+                {supplier.contactPhone && <p><span className="font-medium">Phone:</span> {supplier.contactPhone}</p>}
+                <p><span className="font-medium">Lead Time:</span> {supplier.leadTimeDays} days</p>
+                {supplier.minimumOrderValue > 0 && (
+                  <p><span className="font-medium">Min Order:</span> ${supplier.minimumOrderValue.toFixed(2)}</p>
+                )}
+                {supplier._count && (
+                  <p className="text-gray-500">{supplier._count.orders} order(s)</p>
                 )}
               </div>
-            ))}
-          </div>
-        </Card>
+              <div className="flex gap-2 mt-4">
+                <Button variant="secondary" size="sm" onClick={() => handleDelete(supplier.id)}>
+                  Delete
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {suppliers.length === 0 && (
+        <div className="text-center py-12 text-gray-500">
+          No suppliers yet. Add your first supplier to get started.
+        </div>
       )}
     </div>
   )
