@@ -42,9 +42,10 @@ export default function SuppliersPage() {
     try {
       const res = await fetch('/api/suppliers?organizationId=demo-org')
       const data = await res.json()
-      setSuppliers(data)
+      setSuppliers(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error('Error fetching suppliers:', error)
+      setSuppliers([])
     } finally {
       setLoading(false)
     }
