@@ -16,28 +16,28 @@ export default function Home() {
       linkText: 'Go to Dashboard',
     },
     {
-      title: 'E-commerce Site',
-      description: 'Proof of concept store with inventory sync and real-time updates',
-      href: '/ecommerce',
+      title: 'Retailer Demo Store',
+      description: 'Sample e-commerce site integrated with ChainSentinel SDK',
+      href: '/retailer-demo',
       icon: (
         <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
         </svg>
       ),
-      color: 'bg-success-50 text-success-600',
-      linkText: 'Visit Store',
+      color: 'bg-blue-50 text-blue-600',
+      linkText: 'Visit Demo Store',
     },
     {
-      title: 'Supplier Portal',
-      description: 'Receive orders from distributors, manage fulfillment, track shipments',
-      href: '/supplier',
+      title: 'Supplier Demo Portal',
+      description: 'Demo supplier receiving auto-orders from ChainSentinel',
+      href: '/supplier-demo',
       icon: (
         <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
         </svg>
       ),
-      color: 'bg-warning-50 text-warning-600',
-      linkText: 'View Orders',
+      color: 'bg-orange-50 text-orange-600',
+      linkText: 'View Supplier Portal',
     },
   ]
 
@@ -88,6 +88,9 @@ export default function Home() {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <Link href="/docs">
+                <Button variant="ghost">Documentation</Button>
+              </Link>
               <Link href="/auth/login">
                 <Button variant="ghost">Sign In</Button>
               </Link>
@@ -124,9 +127,9 @@ export default function Home() {
                     </svg>
                   </Button>
                 </Link>
-                <Link href="/ecommerce">
+                <Link href="/docs">
                   <Button variant="secondary" size="lg">
-                    View Demo Store
+                    Developer Docs
                   </Button>
                 </Link>
               </div>

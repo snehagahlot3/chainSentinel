@@ -1,0 +1,21 @@
+{
+  "name": "@chainsentinel/sdk",
+  "version": "1.0.0",
+  "description": "ChainSentinel SDK for server-side integration",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest"
+  },
+  "keywords": ["chainsentinel", "inventory", "supply-chain", "automation"],
+  "author": "ChainSentinel",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "axios": "^1.6.0"
+  }
+}
