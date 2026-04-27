@@ -83,20 +83,32 @@ async function main() {
         }
       })
 
-      await prisma.inventory.upsert({
-        where: { 
-          organizationId_productId: {
-            organizationId: 'demo-org', 
-            productId: product.id 
-          }
-        },
-        update: {},
-        create: {
+      await prisma.inventory.create({
+        data: {
           organizationId: 'demo-org',
+          locationId: 'default-loc',
           productId: product.id,
           quantity: p.quantity,
           minThreshold: p.minThreshold,
           autoOrderThreshold: p.autoOrderThreshold
+        }
+      }).catch(() => {})
+
+      await prisma.location.upsert({
+        where: { id: 'default-loc' },
+        update: {},
+        create: {
+          id: 'default-loc',
+          organizationId: 'demo-org',
+          name: 'Main Store',
+          type: 'STORE',
+          address: '123 Main St',
+          city: 'New York',
+          state: 'NY',
+          zipCode: '10001',
+          country: 'US',
+          latitude: 40.7128,
+          longitude: -74.0060
         }
       })
     } catch (e) {

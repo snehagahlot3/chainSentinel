@@ -8,32 +8,32 @@ datasource db {
 }
 
 model ApiKey {
-  id            String   @id @default(cuid())
-  organization  Organization @relation(fields: [organizationId], references: [id])
+  id             String       @id @default(cuid())
+  organization   Organization @relation(fields: [organizationId], references: [id])
   organizationId String
-  name          String
-  key           String   @unique
-  permissions   String   @default("[]")  // JSON array
-  isActive      Boolean  @default(true)
-  lastUsedAt    DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  name           String
+  key            String       @unique
+  permissions    String       @default("[]") // JSON array
+  isActive       Boolean      @default(true)
+  lastUsedAt     DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 }
 
 model AutomationRule {
-  id            String   @id @default(cuid())
-  organization  Organization @relation(fields: [organizationId], references: [id])
+  id             String           @id @default(cuid())
+  organization   Organization     @relation(fields: [organizationId], references: [id])
   organizationId String
-  name          String
-  description   String?
-  triggerType   TriggerType
-  triggerConfig Json     // JSON config for trigger conditions
-  isActive      Boolean  @default(true)
-  priority      Int      @default(0)
-  tasks         AutomationTask[]
-  executions    RuleExecution[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  name           String
+  description    String?
+  triggerType    TriggerType
+  triggerConfig  Json // JSON config for trigger conditions
+  isActive       Boolean          @default(true)
+  priority       Int              @default(0)
+  tasks          AutomationTask[]
+  executions     RuleExecution[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 }
 
 enum TriggerType {
@@ -43,19 +43,24 @@ enum TriggerType {
   SALE_COMPLETED
   LARGE_ORDER
   MANUAL
+  LOW_STOCK_NEARBY_AVAILABLE
+  SUPPLIER_UNRESPONSIVE
+  SUPPLIER_FAILED
+  DEMAND_SPIKE
+  TRANSFER_REQUESTED
 }
 
 model AutomationTask {
-  id            String   @id @default(cuid())
-  automationRule AutomationRule @relation(fields: [ruleId], references: [id])
-  ruleId        String
-  taskType      TaskType
-  taskConfig    Json     // JSON config for task (email, api_call, etc.)
-  order         Int      @default(0)
-  isActive      Boolean  @default(true)
-  executions    TaskExecution[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id             String          @id @default(cuid())
+  automationRule AutomationRule  @relation(fields: [ruleId], references: [id])
+  ruleId         String
+  taskType       TaskType
+  taskConfig     Json // JSON config for task (email, api_call, etc.)
+  order          Int             @default(0)
+  isActive       Boolean         @default(true)
+  executions     TaskExecution[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 }
 
 enum TaskType {
@@ -64,17 +69,20 @@ enum TaskType {
   WEBHOOK
   CREATE_ORDER
   SMS
+  TRANSFER_STOCK
+  ESCALATE_SUPPLIER
+  CHECK_NEARBY_STOCK
 }
 
 model RuleExecution {
-  id            String   @id @default(cuid())
-  automationRule AutomationRule @relation(fields: [ruleId], references: [id])
-  ruleId        String
-  triggerData   Json     // What triggered the rule
-  status        ExecutionStatus @default(PENDING)
-  errorMessage  String?
-  startedAt     DateTime @default(now())
-  completedAt   DateTime?
+  id             String          @id @default(cuid())
+  automationRule AutomationRule  @relation(fields: [ruleId], references: [id])
+  ruleId         String
+  triggerData    Json // What triggered the rule
+  status         ExecutionStatus @default(PENDING)
+  errorMessage   String?
+  startedAt      DateTime        @default(now())
+  completedAt    DateTime?
   taskExecutions TaskExecution[]
 }
 
@@ -86,46 +94,46 @@ enum ExecutionStatus {
 }
 
 model TaskExecution {
-  id              String   @id @default(cuid())
-  automationTask  AutomationTask @relation(fields: [taskId], references: [id])
-  taskId          String
-  ruleExecution   RuleExecution @relation(fields: [executionId], references: [id])
-  executionId     String
-  status          ExecutionStatus @default(PENDING)
-  result          String?   // Response from external system
-  errorMessage    String?
-  retryCount      Int      @default(0)
-  startedAt       DateTime @default(now())
-  completedAt     DateTime?
+  id             String          @id @default(cuid())
+  automationTask AutomationTask  @relation(fields: [taskId], references: [id])
+  taskId         String
+  ruleExecution  RuleExecution   @relation(fields: [executionId], references: [id])
+  executionId    String
+  status         ExecutionStatus @default(PENDING)
+  result         String? // Response from external system
+  errorMessage   String?
+  retryCount     Int             @default(0)
+  startedAt      DateTime        @default(now())
+  completedAt    DateTime?
 }
 
 model Sale {
-  id              String   @id @default(cuid())
-  organization    Organization @relation(fields: [organizationId], references: [id])
-  organizationId  String
-  productSku      String
-  product         Product? @relation(fields: [productId], references: [id])
-  productId       String?
-  quantity        Int
-  customerEmail   String?
-  orderId         String?
-  amount          Float?
-  metadata        String?  // JSON string
-  source          String   @default("api")  // 'api', 'webhook', 'manual'
-  createdAt       DateTime @default(now())
+  id             String       @id @default(cuid())
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  organizationId String
+  productSku     String
+  product        Product?     @relation(fields: [productId], references: [id])
+  productId      String?
+  quantity       Int
+  customerEmail  String?
+  orderId        String?
+  amount         Float?
+  metadata       String? // JSON string
+  source         String       @default("api") // 'api', 'webhook', 'manual'
+  createdAt      DateTime     @default(now())
 }
 
 model User {
-  id            String         @id @default(cuid())
-  email         String         @unique
-  password      String
-  name          String
-  role          Role           @default(DISTRIBUTOR)
-  organization  Organization?
-  products      Product[]      @relation("UserProducts")
-  supplierProducts Product[]    @relation("SupplierProducts")
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id               String        @id @default(cuid())
+  email            String        @unique
+  password         String
+  name             String
+  role             Role          @default(DISTRIBUTOR)
+  organization     Organization?
+  products         Product[]     @relation("UserProducts")
+  supplierProducts Product[]     @relation("SupplierProducts")
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 }
 
 enum Role {
@@ -135,22 +143,27 @@ enum Role {
 }
 
 model Organization {
-  id            String          @id @default(cuid())
-  name          String
-  type          OrganizationType
-  userId        String          @unique
-  user          User            @relation(fields: [userId], references: [id])
-  integrations  Integration[]
-  inventories   Inventory[]
-  products      Product[]
-  alerts        Alert[]
-  autoOrderRules AutoOrderRule[]
-  orders        Order[]
-  apiKeys       ApiKey[]
-  automationRules AutomationRule[]
-  sales         Sale[]
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  id                String             @id @default(cuid())
+  name              String
+  type              OrganizationType
+  userId            String             @unique
+  user              User               @relation(fields: [userId], references: [id])
+  integrations      Integration[]
+  inventories       Inventory[]
+  products          Product[]
+  alerts            Alert[]
+  autoOrderRules    AutoOrderRule[]
+  orders            Order[]
+  apiKeys           ApiKey[]
+  automationRules   AutomationRule[]
+  sales             Sale[]
+  locations         Location[]
+  suppliers         Supplier[]
+  buyers            Buyer[]
+  locationTransfers LocationTransfer[]
+  supplierOrders    SupplierOrder[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 }
 
 enum OrganizationType {
@@ -159,29 +172,29 @@ enum OrganizationType {
 }
 
 model Integration {
-  id            String          @id @default(cuid())
-  organization  Organization    @relation(fields: [organizationId], references: [id])
+  id             String         @id @default(cuid())
+  organization   Organization   @relation(fields: [organizationId], references: [id])
   organizationId String
-  name          String
-  endpointUrl   String
-  eventTypes    String         // JSON array stored as string
-  isActive      Boolean         @default(true)
-  secretKey     String
-  webhookEvents WebhookEvent[]
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  name           String
+  endpointUrl    String
+  eventTypes     String // JSON array stored as string
+  isActive       Boolean        @default(true)
+  secretKey      String
+  webhookEvents  WebhookEvent[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 }
 
 model WebhookEvent {
-  id            String          @id @default(cuid())
-  integration   Integration     @relation(fields: [integrationId], references: [id])
+  id            String      @id @default(cuid())
+  integration   Integration @relation(fields: [integrationId], references: [id])
   integrationId String
   eventType     String
   payload       Json
-  status        EventStatus     @default(PENDING)
+  status        EventStatus @default(PENDING)
   deliveredAt   DateTime?
-  retryCount    Int             @default(0)
-  createdAt     DateTime        @default(now())
+  retryCount    Int         @default(0)
+  createdAt     DateTime    @default(now())
 }
 
 enum EventStatus {
@@ -191,87 +204,292 @@ enum EventStatus {
 }
 
 model Product {
-  id            String          @id @default(cuid())
-  organization  Organization    @relation(fields: [organizationId], references: [id])
+  id                 String              @id @default(cuid())
+  organization       Organization        @relation(fields: [organizationId], references: [id])
+  organizationId     String
+  name               String
+  sku                String
+  description        String?
+  price              Float
+  cost               Float?
+  supplier           User?               @relation("SupplierProducts", fields: [supplierId], references: [id])
+  supplierId         String?
+  user               User?               @relation("UserProducts", fields: [userId], references: [id])
+  userId             String?
+  inventories        Inventory[]
+  alerts             Alert[]
+  autoOrderRules     AutoOrderRule[]
+  orderItems         OrderItem[]
+  sales              Sale[]
+  transferItems      LocationTransfer[]
+  supplierOrderItems SupplierOrderItem[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+}
+
+model Location {
+  id                  String                       @id @default(cuid())
+  organization        Organization                 @relation(fields: [organizationId], references: [id])
+  organizationId      String
+  name                String
+  type                LocationType
+  address             String?
+  city                String?
+  state               String?
+  zipCode             String?
+  country             String                       @default("US")
+  latitude            Float?
+  longitude           Float?
+  buyerId             String?
+  isActive            Boolean                      @default(true)
+  inventories         Inventory[]
+  transfersFrom       LocationTransfer[]           @relation("TransferFromLocation")
+  transfersTo         LocationTransfer[]           @relation("TransferToLocation")
+  supplierAssignments SupplierLocationAssignment[]
+  orders              SupplierOrder[]
+  createdAt           DateTime                     @default(now())
+  updatedAt           DateTime                     @updatedAt
+}
+
+enum LocationType {
+  STORE
+  WAREHOUSE
+  DISTRIBUTION_CENTER
+}
+
+model Supplier {
+  id                String                       @id @default(cuid())
+  organization      Organization                 @relation(fields: [organizationId], references: [id])
+  organizationId    String
+  name              String
+  contactName       String?
+  contactEmail      String?
+  contactPhone      String?
+  apiEndpoint       String?
+  apiKey            String?
+  leadTimeDays      Int                          @default(7)
+  minimumOrderValue Float                        @default(0)
+  paymentTerms      String?
+  notes             String?
+  isActive          Boolean                      @default(true)
+  assignments       SupplierLocationAssignment[]
+  orders            SupplierOrder[]
+  performance       SupplierPerformance[]
+  createdAt         DateTime                     @default(now())
+  updatedAt         DateTime                     @updatedAt
+}
+
+model SupplierLocationAssignment {
+  id                String   @id @default(cuid())
+  supplier          Supplier @relation(fields: [supplierId], references: [id])
+  supplierId        String
+  location          Location @relation(fields: [locationId], references: [id])
+  locationId        String
+  productSkuMapping String   @default("{}")
+  isActive          Boolean  @default(true)
+  priority          Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([supplierId, locationId])
+}
+
+model Buyer {
+  id             String       @id @default(cuid())
+  organization   Organization @relation(fields: [organizationId], references: [id])
   organizationId String
-  name          String
-  sku           String
-  description   String?
-  price         Float
-  supplier      User?           @relation("SupplierProducts", fields: [supplierId], references: [id])
-  supplierId    String?
-  user          User?           @relation("UserProducts", fields: [userId], references: [id])
-  userId        String?
-  inventories   Inventory[]
-  alerts        Alert[]
-  autoOrderRules AutoOrderRule[]
-  orderItems    OrderItem[]
-  sales         Sale[]
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  userId         String       @unique
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model LocationTransfer {
+  id             String         @id @default(cuid())
+  organization   Organization   @relation(fields: [organizationId], references: [id])
+  organizationId String
+  fromLocation   Location       @relation("TransferFromLocation", fields: [fromLocationId], references: [id])
+  fromLocationId String
+  toLocation     Location       @relation("TransferToLocation", fields: [toLocationId], references: [id])
+  toLocationId   String
+  product        Product        @relation(fields: [productId], references: [id])
+  productId      String
+  quantity       Int
+  status         TransferStatus @default(PENDING)
+  requestedAt    DateTime       @default(now())
+  approvedAt     DateTime?
+  shippedAt      DateTime?
+  receivedAt     DateTime?
+  notes          String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+enum TransferStatus {
+  PENDING
+  APPROVED
+  SHIPPED
+  RECEIVED
+  REJECTED
+  CANCELLED
+}
+
+model SupplierOrder {
+  id             String              @id @default(cuid())
+  organization   Organization        @relation(fields: [organizationId], references: [id])
+  organizationId String
+  supplier       Supplier            @relation(fields: [supplierId], references: [id])
+  supplierId     String
+  location       Location?           @relation(fields: [locationId], references: [id])
+  locationId     String?
+  orderNumber    String              @unique
+  status         OrderStatus         @default(PENDING)
+  totalAmount    Float
+  items          SupplierOrderItem[]
+  requestedAt    DateTime            @default(now())
+  confirmedAt    DateTime?
+  shippedAt      DateTime?
+  deliveredAt    DateTime?
+  notes          String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+}
+
+model SupplierOrderItem {
+  id          String        @id @default(cuid())
+  order       SupplierOrder @relation(fields: [orderId], references: [id])
+  orderId     String
+  product     Product       @relation(fields: [productId], references: [id])
+  productId   String
+  localSku    String
+  supplierSku String?
+  quantity    Int
+  price       Float
+  receivedQty Int           @default(0)
+}
+
+model SupplierPerformance {
+  id                    String   @id @default(cuid())
+  supplier              Supplier @relation(fields: [supplierId], references: [id])
+  supplierId            String
+  periodStart           DateTime
+  periodEnd             DateTime
+  totalOrders           Int      @default(0)
+  fulfilledOrders       Int      @default(0)
+  totalQuantityOrdered  Float    @default(0)
+  totalQuantityReceived Float    @default(0)
+  averageLeadTimeDays   Float    @default(0)
+  onTimeDeliveries      Int      @default(0)
+  lateDeliveries        Int      @default(0)
+  qualityIssues         Int      @default(0)
+  createdAt             DateTime @default(now())
+
+  @@unique([supplierId, periodStart])
+}
+
+model RetrospectiveData {
+  id                     String   @id @default(cuid())
+  organizationId         String
+  locationId             String?
+  productId              String?
+  date                   DateTime
+  quantitySold           Int      @default(0)
+  quantityReceived       Int      @default(0)
+  quantityTransferredIn  Int      @default(0)
+  quantityTransferredOut Int      @default(0)
+  endingInventory        Int      @default(0)
+  reorderPoint           Int?
+  actualReorderQty       Int?
+  supplierId             String?
+  leadTimeActualDays     Int?
+  demandForecast         Float?
+  demandActual           Float?
+  metadata               String?
+  createdAt              DateTime @default(now())
+
+  @@index([organizationId, date])
+  @@index([locationId, productId, date])
 }
 
 model Inventory {
-  id            String          @id @default(cuid())
-  organization  Organization    @relation(fields: [organizationId], references: [id])
-  organizationId String
-  product        Product         @relation(fields: [productId], references: [id])
-  productId      String
-  quantity       Int             @default(0)
-  minThreshold   Int             @default(10)
-  autoOrderThreshold Int         @default(5)
-  lastSyncedAt   DateTime?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  id                 String       @id @default(cuid())
+  organization       Organization @relation(fields: [organizationId], references: [id])
+  organizationId     String
+  location           Location     @relation(fields: [locationId], references: [id])
+  locationId         String
+  product            Product      @relation(fields: [productId], references: [id])
+  productId          String
+  quantity           Int          @default(0)
+  minThreshold       Int          @default(10)
+  autoOrderThreshold Int          @default(5)
+  reorderQuantity    Int          @default(20)
+  lastSyncedAt       DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
 
-  @@unique([organizationId, productId])
+  @@unique([organizationId, locationId, productId])
 }
 
 model Alert {
-  id            String          @id @default(cuid())
-  organization  Organization    @relation(fields: [organizationId], references: [id])
+  id             String        @id @default(cuid())
+  organization   Organization  @relation(fields: [organizationId], references: [id])
   organizationId String
-  type          AlertType
-  message       String
-  product        Product?        @relation(fields: [productId], references: [id])
+  type           AlertType
+  message        String
+  product        Product?      @relation(fields: [productId], references: [id])
   productId      String?
-  isRead         Boolean         @default(false)
-  createdAt     DateTime        @default(now())
+  locationId     String?
+  supplierId     String?
+  isRead         Boolean       @default(false)
+  severity       AlertSeverity @default(INFO)
+  metadata       String?
+  createdAt      DateTime      @default(now())
 }
 
 enum AlertType {
   LOW_STOCK
+  LOW_STOCK_TRANSFER
   AUTO_ORDER_TRIGGERED
   WEBHOOK_FAILED
   ORDER_RECEIVED
+  SUPPLIER_UNRESPONSIVE
+  SUPPLIER_FAILED
+  TRANSFER_REQUESTED
+  TRANSFER_RECEIVED
+  DEMAND_SPIKE
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
 }
 
 model AutoOrderRule {
-  id                String          @id @default(cuid())
-  organization      Organization    @relation(fields: [organizationId], references: [id])
+  id                String       @id @default(cuid())
+  organization      Organization @relation(fields: [organizationId], references: [id])
   organizationId    String
-  product           Product         @relation(fields: [productId], references: [id])
+  product           Product      @relation(fields: [productId], references: [id])
   productId         String
   thresholdQuantity Int
   quantityToOrder   Int
   supplierId        String
-  isActive          Boolean         @default(true)
+  isActive          Boolean      @default(true)
   lastTriggeredAt   DateTime?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 }
 
 model Order {
-  id            String          @id @default(cuid())
-  organization  Organization    @relation(fields: [organizationId], references: [id])
+  id             String       @id @default(cuid())
+  organization   Organization @relation(fields: [organizationId], references: [id])
   organizationId String
-  orderNumber   String          @unique
-  status        OrderStatus     @default(PENDING)
-  totalAmount   Float
-  supplierId    String?
-  items         OrderItem[]
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  orderNumber    String       @unique
+  status         OrderStatus  @default(PENDING)
+  totalAmount    Float
+  supplierId     String?
+  items          OrderItem[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 }
 
 enum OrderStatus {
@@ -283,11 +501,11 @@ enum OrderStatus {
 }
 
 model OrderItem {
-  id            String          @id @default(cuid())
-  order         Order           @relation(fields: [orderId], references: [id])
-  orderId       String
-  product       Product         @relation(fields: [productId], references: [id])
-  productId     String
-  quantity      Int
-  price         Float
+  id        String  @id @default(cuid())
+  order     Order   @relation(fields: [orderId], references: [id])
+  orderId   String
+  product   Product @relation(fields: [productId], references: [id])
+  productId String
+  quantity  Int
+  price     Float
 }

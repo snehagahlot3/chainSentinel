@@ -43,16 +43,6 @@ export async function POST(request: NextRequest) {
       },
     })
     
-    await prisma.inventory.create({
-      data: {
-        organizationId,
-        productId: product.id,
-        quantity: 0,
-        minThreshold: 10,
-        autoOrderThreshold: 5,
-      },
-    })
-    
     return NextResponse.json(product)
   } catch (error) {
     console.error('Error creating product:', error)
