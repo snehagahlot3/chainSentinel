@@ -1,14 +1,19 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
 model Prediction {
-  id                  String   @id @default(cuid())
+  id                  String    @id @default(cuid())
   organizationId     String
   productId          String
-  predictedDepletion DateTime
+  product           Product   @relation(fields: [productId], references: [id])
+  predictedDepletion DateTime?
   riskLevel          String
   confidence         Float
-  recommendedOrderQty Int
-  daysRemaining     Int
-  createdAt          DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  recommendedOrderQty Int?
+  daysRemaining    Int?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   @@unique([organizationId, productId])
 }
@@ -232,6 +237,7 @@ model Product {
   autoOrderRules     AutoOrderRule[]
   orderItems         OrderItem[]
   sales              Sale[]
+  predictions       Prediction[]
   transferItems      LocationTransfer[]
   supplierOrderItems SupplierOrderItem[]
   createdAt          DateTime            @default(now())
