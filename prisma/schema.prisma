@@ -1,5 +1,16 @@
-generator client {
-  provider = "prisma-client-js"
+model Prediction {
+  id                  String   @id @default(cuid())
+  organizationId     String
+  productId          String
+  predictedDepletion DateTime
+  riskLevel          String
+  confidence         Float
+  recommendedOrderQty Int
+  daysRemaining     Int
+  createdAt          DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([organizationId, productId])
 }
 
 datasource db {
