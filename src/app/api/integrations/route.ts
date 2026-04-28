@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
         organizationId,
         name,
         endpointUrl,
-        eventTypes,
+        eventTypes: JSON.stringify(eventTypes),
         secretKey,
       },
     })
