@@ -37,7 +37,8 @@ export async function GET(request: NextRequest) {
 
     for (const pred of predictions) {
       const inv = await prisma.inventory.findFirst({
-        where: { organizationId, productId: pred.productId },
+        where: { productId: pred.productId },
+        orderBy: { quantity: 'desc' },
       });
       if (inv) {
         pred.currentStock = inv.quantity;
